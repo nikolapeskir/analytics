@@ -1,0 +1,26 @@
+{
+    "name": "leanmachine/analytics",
+    "description": "Google Analytics OAuth2",
+    "type": "library",
+    "require": {
+        "illuminate/support": "^7.0@dev"
+    },
+    "require-dev": {
+        "php": "^7.2",
+        "phpunit/phpunit": "^8.5@dev",
+        "google/apiclient": "^2.0@dev"
+    },
+    "autoload": {
+        "psr-4": {
+            "Leanmachine\\Analytics\\": "src"
+        }
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Nikola Peskir",
+            "email": "nikola.peskir.bgd@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev"
+}
