@@ -17,6 +17,7 @@ class AnalyticsController extends Controller
     public function index()
     {
         $config = config('analytics');
+
         return $config['routes'];
     }
 

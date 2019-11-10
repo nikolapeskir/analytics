@@ -10,14 +10,14 @@ class AnalyticsServiceProvider extends ServiceProvider
     {
         $this->publishes([
             __DIR__.'/../../config/analytics.php' => config_path('analytics.php'),
+            // __DIR__.'/../resources/views' => resource_path('views/vendor/analytics'),
         ]);
 
         $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
-        // $this->loadMigrationsFrom(__DIR__.'/migrations');
-        // $this->loadViewsFrom(__DIR__.'/views', 'analytics');
-        // $this->publishes([
-        //     __DIR__.'/views' => resource_path('views/vendor/analytics'),
-        // ]);
+
+        // $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+
+        // $this->loadViewsFrom(__DIR__.'/../resources/views', 'analytics');
     }
 
     public function register()
@@ -26,7 +26,5 @@ class AnalyticsServiceProvider extends ServiceProvider
 
         $this->app->make('Leanmachine\Analytics\Http\Controllers\AnalyticsController');
 
-        // $config = config('analytics');
-        // echo $config['routes'];
     }
 }
