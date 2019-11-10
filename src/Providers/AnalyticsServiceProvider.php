@@ -8,7 +8,7 @@ class AnalyticsServiceProvider extends ServiceProvider
 {
     public function boot()
     {
-        
+        echo "package loaded";
     }
 
     public function register()

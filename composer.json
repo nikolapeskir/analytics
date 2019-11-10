@@ -2,10 +2,12 @@
     "name": "leanmachine/analytics",
     "description": "Google Analytics OAuth2",
     "type": "library",
+    "require": {
+        "google/apiclient": "2"
+    },
     "require-dev": {
         "php": "^7.2",
-        "phpunit/phpunit": "^8.5@dev",
-        "google/apiclient": "^2.0@dev"
+        "phpunit/phpunit": "^8.5@dev"
     },
     "autoload": {
         "psr-4": {
