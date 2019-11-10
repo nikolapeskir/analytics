@@ -12,6 +12,13 @@
             "Leanmachine\\Analytics\\": "src"
         }
     },
+    "extra": {
+        "laravel": {
+            "providers": {
+                "Leanmachine\\Analytics\\Providers\\AnalyticsServiceProvider"
+            }
+        }
+    },
     "license": "MIT",
     "authors": [
         {
