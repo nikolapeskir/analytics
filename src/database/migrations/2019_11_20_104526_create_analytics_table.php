@@ -21,7 +21,7 @@ class CreateAnalyticsTable extends Migration
             $table->string('token_type');
             $table->string('scope');
             $table->unsignedSmallInteger('expires_in');
-            $table->unsignedSmallInteger('created');
+            $table->unsignedInteger('created');
             $table->timestamps();
         });
     }
