@@ -28,11 +28,12 @@ class AnalyticsController extends Controller
     public function index()
     {
         $client = $this->authenticateClient();
+        $reports = $this->getReport($client);
 
-        dd($this->getReport($client));
+        // dd($this->printResults($reports));
 
         return ($client) ?
-            'Connected'
+            'Connected <br />' . $this->printResults($reports)
             : auth()->user()->name . '<br/><a href="' . url('analytics/connect') . '">Connect</a>';
     }
 
@@ -216,7 +217,7 @@ class AnalyticsController extends Controller
         }
     }
 
-    function getReport($client)
+    private function getReport($client)
     {
         $analytics = new Google_Service_AnalyticsReporting($client);
         // Replace with your view ID, for example XXXX.
@@ -242,6 +243,34 @@ class AnalyticsController extends Controller
         $body->setReportRequests( array( $request) );
 
         return $analytics->reports->batchGet( $body );
+    }
+
+    function printResults($reports)
+    {
+        for ( $reportIndex = 0; $reportIndex < count( $reports ); $reportIndex++ ) {
+            $report = $reports[ $reportIndex ];
+            $header = $report->getColumnHeader();
+            $dimensionHeaders = $header->getDimensions();
+            $metricHeaders = $header->getMetricHeader()->getMetricHeaderEntries();
+            $rows = $report->getData()->getRows();
+
+            for ( $rowIndex = 0; $rowIndex < count($rows); $rowIndex++) {
+                $row = $rows[ $rowIndex ];
+                $dimensions = $row->getDimensions();
+                $metrics = $row->getMetrics();
+                for ($i = 0; $i < count($dimensionHeaders) && $i < count($dimensions); $i++) {
+                    print($dimensionHeaders[$i] . ": " . $dimensions[$i] . "\n");
+                }
+
+                for ($j = 0; $j < count($metrics); $j++) {
+                    $values = $metrics[$j]->getValues();
+                    for ($k = 0; $k < count($values); $k++) {
+                        $entry = $metricHeaders[$k];
+                        print($entry->getName() . ": " . $values[$k] . "\n");
+                    }
+                }
+            }
+        }
     }
 
     /*public function disconnect(Google_Client $client, GoogleAnalytics $googleAnalytics)
