@@ -8,5 +8,5 @@ class Analytic extends Model
 {
     // protected $fillable = [''];
 
-    protected guarded = [];
+    protected $guarded = [];
 }

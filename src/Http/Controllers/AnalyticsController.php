@@ -4,7 +4,8 @@ namespace Leanmachine\Analytics\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Http\Requests;
-// use App\Http\Controllers\Controller;
+use App\User;
+use Leanmachine\Analytics\Http\Analytic;
 use Illuminate\Routing\Controller;
 use Google_Client;
 use Google_Service_Analytics;
@@ -18,9 +19,9 @@ class AnalyticsController extends Controller
      */
     public function index()
     {
-        $config = config('analytics');
+        $analytics = Analytic::where('user_id', auth()->user());
 
-        return $config['web'];
+        return ($analytics) ? $analytics : url('analytics/connect');
     }
 
     /**
@@ -94,11 +95,9 @@ class AnalyticsController extends Controller
      */
     public function redirectToProvider()
     {
-        // dd(config('analytics'));
-        // Create the client object and set the authorization configuration from JSON file.
         $client = new Google_Client();
         $client->setAuthConfig(config('analytics'));
-        $client->setRedirectUri(config('analytics.web.redirect_uris'));
+        $client->setRedirectUri(config('app.url') . env('GOOGLE_ANALYTICS_CALLBACK_URI'));
         $client->addScope(Google_Service_Analytics::ANALYTICS_READONLY);
         $client->addScope(Google_Service_Analytics::ANALYTICS_MANAGE_USERS);
         $client->setAccessType("offline");
@@ -113,21 +112,28 @@ class AnalyticsController extends Controller
      */
     public function handleProviderCallback()
     {
-        // Handle authorization flow from the server.
         if (!isset(request()->code))
-            return redirect()->route('ga.auth');
+            return redirect()->route('ga.connect');
 
-        $user = auth()->user();
-        $user->code = request()->code;
-        $user->ga_connected = 'true';
+        $client->authenticate(request()->code);
+
+        if(!$token = $client->getAccessToken())
+            return false;
+
+        if (!$user = User::findOrFail(auth()->user()->id))
+            return false;
+
+        if (!$userToken = Analytic::where('user_id'))
+            $userToken = new Analytics;
+
+        $userToken->user_id = $user->id;
+        foreach ($token as $var)
+            $userToken->{$var} = $token[$var];
+
         $user->save();
 
-        // ProcessGoogleAuthentication::dispatch(
-        //     request()->code,
-        //     $user->id
-        // )->onQueue('ga-views');
-
-        return redirect()->route('users.show', $user->id);
+        return redirect('analytics');
+            // ->route('ga.index', $user->id);
     }
 
     /*public function disconnect(Google_Client $client, GoogleAnalytics $googleAnalytics)

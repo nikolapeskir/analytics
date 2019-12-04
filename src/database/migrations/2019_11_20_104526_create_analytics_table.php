@@ -16,10 +16,12 @@ class CreateAnalyticsTable extends Migration
         Schema::create('analytics', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->integer('user_id');
-            $table->string('token');
+            $table->string('access_token');
             $table->string('refresh_token');
-            $table->string('type');
-            $table->timestamp('expire');
+            $table->string('token_type');
+            $table->string('scope');
+            $table->unsignedSmallInteger('expires_in');
+            $table->unsignedSmallInteger('created');
             $table->timestamps();
         });
     }
