@@ -15,7 +15,7 @@ class CreateAnalyticsTable extends Migration
     {
         Schema::create('analytics', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->integer('user_id');
+            $table->unsignedInteger('user_id');
             $table->string('access_token');
             $table->string('refresh_token');
             $table->string('token_type');

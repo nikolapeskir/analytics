@@ -2,13 +2,14 @@
 
 namespace Leanmachine\Analytics\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Http\Requests;
+use Illuminate\Routing\Controller;
+// use App\Http\Controllers\Controller;
+// use Illuminate\Http\Request;
+// use Illuminate\Support\Facades\Auth;
+// use App\Http\Requests;
+// use Session;
 use App\User;
 use Leanmachine\Analytics\Http\Analytic;
-use Illuminate\Routing\Controller;
-use Google_Client;
-use Google_Service_Analytics;
 
 class AnalyticsController extends Controller
 {
@@ -21,7 +22,7 @@ class AnalyticsController extends Controller
     {
         $analytics = Analytic::where('user_id', auth()->id())->first();
 
-        return ($analytics) ? $analytics : url('analytics/connect');
+        return ($analytics) ? $analytics : auth()->user() . '<br/><a href="' . url('analytics/connect') . '">Connect</a>';
     }
 
     /**
@@ -114,9 +115,11 @@ class AnalyticsController extends Controller
         if (!isset(request()->code))
             return redirect()->route('ga.connect');
 
+        $client = new Google_Client();
+        $client->setAuthConfig(config('analytics'));
         $client->authenticate(request()->code);
 
-        if(!$token = $client->getAccessToken())
+        if (!$token = $client->getAccessToken())
             return false;
 
         if (!$user = User::where(auth()->id()))
@@ -131,8 +134,8 @@ class AnalyticsController extends Controller
 
             $userToken->save();
         } else {
-            dd($token);
-        Analytic::create($token);
+            // dd($token);
+            Analytic::create($token);
         }
 
         return redirect('analytics');
