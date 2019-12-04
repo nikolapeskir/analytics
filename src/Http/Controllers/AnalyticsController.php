@@ -19,7 +19,7 @@ class AnalyticsController extends Controller
      */
     public function index()
     {
-        $analytics = Analytic::where('user_id', auth()->user());
+        $analytics = Analytic::where('user_id', auth()->id())->first();
 
         return ($analytics) ? $analytics : url('analytics/connect');
     }
@@ -102,9 +102,8 @@ class AnalyticsController extends Controller
         $client->addScope(Google_Service_Analytics::ANALYTICS_MANAGE_USERS);
         $client->setAccessType("offline");
         $client->setApprovalPrompt('force');
-        $authUrl = $client->createAuthUrl();
 
-        return redirect($authUrl);
+        return redirect($client->createAuthUrl());
     }
 
     /**
