@@ -119,17 +119,21 @@ class AnalyticsController extends Controller
         if(!$token = $client->getAccessToken())
             return false;
 
-        if (!$user = User::findOrFail(auth()->user()->id))
+        if (!$user = User::where(auth()->id()))
             return false;
 
-        if (!$userToken = Analytic::where('user_id'))
-            $userToken = new Analytics;
+        $token['user_id'] = auth()->id();
 
-        $userToken->user_id = $user->id;
-        foreach ($token as $var)
-            $userToken->{$var} = $token[$var];
+        if (Analytic::where('user_id', auth()->id())) {
+            $userToken = new Analytic;
+            foreach ($token as $key => $val)
+                $userToken->{$key} = $token[$key];
 
-        $user->save();
+            $userToken->save();
+        } else {
+            dd($token);
+        Analytic::create($token);
+        }
 
         return redirect('analytics');
             // ->route('ga.index', $user->id);
