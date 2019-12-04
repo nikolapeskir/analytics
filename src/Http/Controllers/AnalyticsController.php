@@ -10,6 +10,13 @@ use Illuminate\Routing\Controller;
 // use Session;
 use App\User;
 use Leanmachine\Analytics\Http\Analytic;
+use Google_Client;
+use Google_Service_Analytics;
+use Google_Service_AnalyticsReporting;
+use Google_Service_AnalyticsReporting_DateRange;
+use Google_Service_AnalyticsReporting_Metric;
+use Google_Service_AnalyticsReporting_ReportRequest;
+use Google_Service_AnalyticsReporting_GetReportsRequest;
 
 class AnalyticsController extends Controller
 {
@@ -20,9 +27,13 @@ class AnalyticsController extends Controller
      */
     public function index()
     {
-        $analytics = Analytic::where('user_id', auth()->id())->first();
+        $client = $this->authenticateClient();
 
-        return ($analytics) ? $analytics : auth()->user() . '<br/><a href="' . url('analytics/connect') . '">Connect</a>';
+        dd($this->getReport($client));
+
+        return ($client) ?
+            'Connected'
+            : auth()->user()->name . '<br/><a href="' . url('analytics/connect') . '">Connect</a>';
     }
 
     /**
@@ -140,6 +151,97 @@ class AnalyticsController extends Controller
 
         return redirect('analytics');
             // ->route('ga.index', $user->id);
+    }
+
+    private function authenticateClient()
+    {
+        if (!$analytics = Analytic::where('user_id', auth()->id())->first())
+            return false;
+
+        $analyticsArray = $analytics->attributesToArray();
+
+        $client = new Google_Client();
+        $client->setAuthConfig(config('services.google.analytics'));
+
+        if (isset($analytics->access_token))
+            $client->setAccessToken($analyticsArray);
+
+        // if ($client->isAccessTokenExpired()) {
+        //     $client->fetchAccessTokenWithRefreshToken($analytics->refresh_token);
+        //     $analytics->access_token = json_encode($client->getAccessToken());
+        //     $analytics->save();
+        // }
+
+        return ($client) ? $client : false;
+    }
+
+    private function getFirstProfileId($client)
+    {
+        // Get the user's first view (profile) ID.
+        $analytics = new Google_Service_Analytics($client);
+
+        // Get the list of accounts for the authorized user.
+        $accounts = $analytics->management_accounts->listManagementAccounts();
+
+        if (count($accounts->getItems()) > 0) {
+            $items = $accounts->getItems();
+            $firstAccountId = $items[0]->getId();
+
+            // Get the list of properties for the authorized user.
+            $properties = $analytics->management_webproperties
+                ->listManagementWebproperties($firstAccountId);
+
+            if (count($properties->getItems()) > 0) {
+                $items = $properties->getItems();
+                $firstPropertyId = $items[0]->getId();
+
+                // Get the list of views (profiles) for the authorized user.
+                $profiles = $analytics->management_profiles
+                    ->listManagementProfiles($firstAccountId, $firstPropertyId);
+
+                if (count($profiles->getItems()) > 0) {
+                    $items = $profiles->getItems();
+
+                    // Return the first view (profile) ID.
+                    return $items[0]->getId();
+
+                } else {
+                    throw new Exception('No views (profiles) found for this user.');
+                }
+            } else {
+                throw new Exception('No properties found for this user.');
+            }
+        } else {
+            throw new Exception('No accounts found for this user.');
+        }
+    }
+
+    function getReport($client)
+    {
+        $analytics = new Google_Service_AnalyticsReporting($client);
+        // Replace with your view ID, for example XXXX.
+        $VIEW_ID = $this->getFirstProfileId($client);
+
+        // Create the DateRange object.
+        $dateRange = new Google_Service_AnalyticsReporting_DateRange();
+        $dateRange->setStartDate("7daysAgo");
+        $dateRange->setEndDate("today");
+
+        // Create the Metrics object.
+        $sessions = new Google_Service_AnalyticsReporting_Metric();
+        $sessions->setExpression("ga:sessions");
+        $sessions->setAlias("sessions");
+
+        // Create the ReportRequest object.
+        $request = new Google_Service_AnalyticsReporting_ReportRequest();
+        $request->setViewId($VIEW_ID);
+        $request->setDateRanges($dateRange);
+        $request->setMetrics(array($sessions));
+
+        $body = new Google_Service_AnalyticsReporting_GetReportsRequest();
+        $body->setReportRequests( array( $request) );
+
+        return $analytics->reports->batchGet( $body );
     }
 
     /*public function disconnect(Google_Client $client, GoogleAnalytics $googleAnalytics)
