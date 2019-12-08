@@ -4,13 +4,15 @@ namespace Leanmachine\Analytics\Http\Controllers;
 
 use Illuminate\Routing\Controller;
 // use App\Http\Controllers\Controller;
-// use Illuminate\Http\Request;
+use Illuminate\Http\Request;
 // use Illuminate\Support\Facades\Auth;
 // use App\Http\Requests;
 // use Session;
 use Auth;
 use App\User;
+use Carbon\Carbon;
 use Leanmachine\Analytics\Http\Analytic;
+use Illuminate\Contracts\Cache\Repository;
 use Google_Client;
 use Google_Service_Analytics;
 use Google_Service_AnalyticsReporting;
@@ -18,222 +20,136 @@ use Google_Service_AnalyticsReporting_DateRange;
 use Google_Service_AnalyticsReporting_Metric;
 use Google_Service_AnalyticsReporting_ReportRequest;
 use Google_Service_AnalyticsReporting_GetReportsRequest;
+use Leanmachine\Analytics\Http\Analytics;
+use Leanmachine\Analytics\Http\AnalyticsClient;
+use Leanmachine\Analytics\Http\Period;
+use Closure;
 
 class AnalyticsController extends Controller
 {
-    private $user;
+    protected $analytics;
 
-    private $client;
-
-    private $authClient;
-
-    private $analytics;
+    protected $viewId;
 
     public function __construct()
     {
-        $this->middleware(function ($request, $next) {
-            $this->user = auth()->user();
+        $this->middleware(function ($request, Closure $next) {
 
-            return $next($request);
-        });
+            $this->setAnalytics();
+            $courentRoute = '/' . \Route::current()->uri;
 
-        $this->client = new Google_Client();
-        $this->client->setAuthConfig(config('analytics'));
+            if ($courentRoute == '/analytics/connect'
+            || $courentRoute == config('analytics.authenticate'))
+                return $next($request);
 
-        $this->middleware(function ($request, $next) {
-            $this->authClient = $this->authenticateClient();
-            $this->analytics = ($this->authClient)
-                ? new Google_Service_Analytics($this->authClient)
-                : null;
+            if (!$this->checkConnection())
+                return redirect(config('analytics.authenticate'));
 
             return $next($request);
         });
     }
 
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
+    private function setAnalytics()
+    {
+        $this->analytics = new Analytics(new Google_Client());
+    }
+
     public function index()
     {
-        // dd($this->user);
-        // $client = $this->authenticateClient();
-        // $this->analytics = new Google_Service_Analytics($this->authenticateClient());
-        dd($this->getAnalyticsProperties());
+        // dd($this->getFirstProfileId());
+        /*$accounts = $this->getAccounts();
+        $properties = $this->getProperties($accounts[1]['id']);
+        $profiles = $this->getViews($properties[0]['account_id'], $properties[0]['id']);
 
-        return ($this->authClient)
-            ? $this->user->name . "<br />Connected <br /><pre>".print_r($this->getReport())."</pre>"
-            : $this->user->name . '<br /><a href="' . url('analytics/connect') . '">Connect</a>';
+        $service = $this->analytics->setViewId($profiles[0]['id']);
+        $startDate = Carbon::now()->subYear();
+        $endDate = Carbon::now();
+        $period = Period::create($startDate, $endDate);*/
+
+        /*$analyticsData = $service->performQuery(
+            Period::create($startDate, $endDate),
+            'ga:users',
+            [
+                'metrics' => 'ga:users',
+                'dimensions' => 'ga:keyword, ga:landingPagePath, ga:date',
+                'sort' => '-ga:date',
+                'filters' => 'ga:keyword==tracker',
+                'segment' => 'gaid::-5'
+            ]
+        );
+        dd($analyticsData);*/
+
+        // dd($service->fetchMostVisitedPages($period));
+
+        $accounts = $this->getAccounts();
+
+        return ($accounts != null)
+            ? view('analytics::analytics.index', compact('accounts'))
+            : 'No Accounts';
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
+    public function getAccounts()
     {
-        //
+        return $this->analytics->service->getAccounts();
     }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store(Request $request)
+    public function getProperties($accountId = '')
     {
-        //
+        $accountId = ($accountId != '') ? $accountId : request()->accountId;
+
+        return $this->analytics->service->getProperties($accountId);
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function show($id)
+    public function getViews($accountId = '', $propertyId = '')
     {
-        //
+        $accountId = ($accountId != '') ? $accountId : request()->accountId;
+        $propertyId = ($propertyId != '') ? $propertyId : request()->propertyId;
+
+        return $this->analytics->service->getManagementProfiles($accountId, $propertyId);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function edit($id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, $id)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy($id)
-    {
-        //
-    }
-
-    /**
-     * Redirect the user to the Google authentication
-     */
     public function redirectToProvider()
     {
-        // $client = new Google_Client();
-        // $client->setAuthConfig(config('analytics'));
-        $this->client->setRedirectUri(config('app.url') . env('GOOGLE_ANALYTICS_CALLBACK_URI'));
-        $this->client->addScope(Google_Service_Analytics::ANALYTICS_READONLY);
-        $this->client->addScope(Google_Service_Analytics::ANALYTICS_MANAGE_USERS);
-        $this->client->setAccessType("offline");
-        $this->client->setApprovalPrompt('force');
-
-        return redirect($this->client->createAuthUrl());
+        return redirect($this->analytics->getAuthUrl());
     }
 
-    /**
-     * Obtain the user information from Google.
-     */
+    // Consumer can adjust
+    public function authenticate()
+    {
+        $connected = $this->checkConnection();
+
+        return view('analytics::analytics.authenticate', compact('connected'));
+    }
+
     public function handleProviderCallback()
     {
-        if (!isset(request()->code))
-            return redirect()->route('ga.connect');
-
-        // $client = new Google_Client();
-        // $client->setAuthConfig(config('analytics'));
-        $this->client->authenticate(request()->code);
-
-        if (!$token = $this->client->getAccessToken())
-            return false;
-
-        $token['user_id'] = $this->user->id;
-
-        if (Analytic::where('user_id', $this->user->id)) {
-            $userToken = new Analytic;
-            foreach ($token as $key => $val)
-                $userToken->{$key} = $token[$key];
-
-            $userToken->save();
-        } else {
-            Analytic::create($token);
-        }
-
-        return redirect('analytics');
-        // ->route('ga.index', $user->id);
+        if ($this->analytics->storeToken())
+            return redirect(config('analytics.authenticate'));
     }
-
-    public function authenticateClient()
+    private function checkConnection()
     {
-        if (!$analytics = Analytic::where('user_id', $this->user->id)->first())
-            return false;
-
-        $analyticsArray = $analytics->attributesToArray();
-
-        // $client = new Google_Client();
-        // $client->setAuthConfig(config('analytics'));
-
-        if (isset($analytics->access_token))
-            $this->client->setAccessToken($analyticsArray);
-
-        if ($this->client->isAccessTokenExpired()) {
-            $this->client->fetchAccessTokenWithRefreshToken($analyticsArray['refresh_token']);
-            $token = $this->client->getAccessToken();
-            foreach ($token as $key => $val)
-                $analytics->{$key} = $token[$key];
-
-            $analytics->save();
-        }
-
-        return ($this->client) ? $this->client : false;
+        return ($this->analytics->service !== null) ? true : false;
     }
 
+    public function disconnect()
+    {
+        $this->analytics->disconnect();
+
+        return redirect(config('analytics.authenticate'));
+    }
+    
     private function getFirstProfileId()
     {
-        // Get the user's first view (profile) ID.
-        $analytics = new Google_Service_Analytics($this->authClient);
+        $accounts = $this->getAccounts();
+        if ($accounts != null) {
 
-        // Get the list of accounts for the authorized user.
-        $accounts = $analytics->management_accounts->listManagementAccounts();
+            $properties = $this->getProperties($accounts[0]['id']);
+            if ($properties != null) {
 
-        if (count($accounts->getItems()) > 0) {
-            $items = $accounts->getItems();
-            $firstAccountId = $items[0]->getId();
+                $profiles = $this->getViews($properties[0]['account_id'], $properties[0]['id']);
+                if ($profiles != null) {
 
-            // Get the list of properties for the authorized user.
-            $properties = $analytics->management_webproperties
-                ->listManagementWebproperties($firstAccountId);
-
-            if (count($properties->getItems()) > 0) {
-                $items = $properties->getItems();
-                $firstPropertyId = $items[0]->getId();
-
-                // Get the list of views (profiles) for the authorized user.
-                $profiles = $analytics->management_profiles
-                    ->listManagementProfiles($firstAccountId, $firstPropertyId);
-
-                if (count($profiles->getItems()) > 0) {
-                    $items = $profiles->getItems();
-
-                    // Return the first view (profile) ID.
-                    return $items[0]->getId();
+                    return $profiles[0]['id'];
 
                 } else {
                     throw new Exception('No views (profiles) found for this user.');
@@ -246,7 +162,7 @@ class AnalyticsController extends Controller
         }
     }
 
-    public function getAnalyticsProperties()
+    /*private function getAnalyticsProperties()
     {
         $views = [];
 
@@ -309,9 +225,9 @@ class AnalyticsController extends Controller
         }
 
         return $views;
-    }
+    }*/
 
-    private function getReport()
+    /*private function getReport()
     {
         $analytics = new Google_Service_AnalyticsReporting($this->authClient);
         // Replace with your view ID, for example XXXX.
@@ -337,9 +253,9 @@ class AnalyticsController extends Controller
         $body->setReportRequests( array( $request) );
 
         return $analytics->reports->batchGet( $body );
-    }
+    }*/
 
-    function printResults($reports)
+    /*function printResults($reports)
     {
         for ( $reportIndex = 0; $reportIndex < count( $reports ); $reportIndex++ ) {
             $report = $reports[ $reportIndex ];
@@ -365,7 +281,7 @@ class AnalyticsController extends Controller
                 }
             }
         }
-    }
+    }*/
 
     /*public function disconnect(Google_Client $client, GoogleAnalytics $googleAnalytics)
     {

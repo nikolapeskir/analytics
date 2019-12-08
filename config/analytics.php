@@ -10,5 +10,10 @@ return [
         'client_secret' => env('GOOGLE_ANALYTICS_CLIENT_SECRET'),
         'redirect_uris' => [env('APP_URL') . env('GOOGLE_ANALYTICS_CALLBACK_URI')],
         'javascript_origins' => [env('APP_URL')]
-    ]
+    ],
+    'authenticate' => env('GOOGLE_ANALYTICS_AUTH_URI'),
+    'cache_lifetime_in_minutes' => 60 * 24,
+    'cache' => [
+        'store' => 'file',
+    ],
 ];
