@@ -14,13 +14,9 @@ class AnalyticsClient
 {
     public $client;
 
-    // public $client;
-
     public $service;
 
     protected $cache;
-
-    // public $user;
 
     protected $cacheLifeTimeInMinutes = 0;
 
