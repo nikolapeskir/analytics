@@ -4,7 +4,7 @@ namespace Leanmachine\Analytics\Http;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Analytic extends Model
+class AnalyticsViews extends Model
 {
     protected $guarded = [];
 }

@@ -8,6 +8,7 @@ use Google_Service_Analytics;
 use Illuminate\Support\Collection;
 // use Illuminate\Support\Traits\Macroable;
 use Leanmachine\Analytics\Http\Analytic;
+use Leanmachine\Analytics\Http\AnalyticViews;
 
 class Analytics
 {
@@ -79,17 +80,23 @@ class Analytics
 
         $token['user_id'] = $this->user->id;
 
-        if (Analytic::where('user_id', $this->user->id)) {
-            $userToken = new Analytic;
+        $userToken = Analytic::where('user_id', $this->user->id)->first();
+
+        if ($userToken != null) {
             foreach ($token as $key => $val)
                 $userToken->{$key} = $token[$key];
 
             $userToken->save();
         } else {
-            Analytic::create($token);
+            $userToken = Analytic::create($token);
         }
 
         return true;
+    }
+
+    public function checkConnection()
+    {
+        return ($this->service !== null) ? true : false;
     }
 
     public function disconnect()
@@ -98,6 +105,9 @@ class Analytics
             return null;
 
         $analytics->delete();
+
+        if ($analyticsViews = AnalyticsViews::where('user_id', $this->user->id))
+            $analyticsViews->delete();
     }
 
     public function setViewId(string $viewId)

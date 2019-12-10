@@ -9,8 +9,8 @@ class AnalyticsServiceProvider extends ServiceProvider
     public function boot()
     {
         $this->publishes([
-            __DIR__ . '/../../config/analytics.php' => config_path('analytics.php'),
-            __DIR__.'/../resources/views' => resource_path('views/vendor/analytics'),
+            __DIR__ . '/../../config/analytics.php' => config_path('analytics.php', 'config'),
+            __DIR__.'/../resources/views' => resource_path('views/vendor'),
         ]);
 
         $this->loadRoutesFrom(__DIR__ . '/../routes/web.php');
@@ -27,6 +27,5 @@ class AnalyticsServiceProvider extends ServiceProvider
         $this->app->make('Leanmachine\Analytics\Http\Controllers\AnalyticsController');
 
         $this->app->alias(Analytics::class, 'laravel-analytics');
-
     }
 }
