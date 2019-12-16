@@ -19,7 +19,7 @@ class AnalyticsClient
 
     protected $cache;
 
-    protected $cacheLifeTimeInMinutes = 60 * 30;
+    protected $cacheLifeTimeInMinutes = 60 * 24 * 30;
 
     // public function __construct(Google_Service_Analytics $service, Repository $cache)
     public function __construct(Analytics $analytics)
