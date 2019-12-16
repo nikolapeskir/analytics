@@ -6,6 +6,7 @@ use DateTime;
 use Google_Client;
 use Google_Service_Analytics;
 use Illuminate\Contracts\Cache\Repository;
+use Illuminate\Support\Facades\Cache;
 use Leanmachine\Analytics\Http\Analytic;
 use Leanmachine\Analytics\Http\Analytics;
 use App\User;
@@ -18,7 +19,7 @@ class AnalyticsClient
 
     protected $cache;
 
-    protected $cacheLifeTimeInMinutes = 0;
+    protected $cacheLifeTimeInMinutes = 60 * 30;
 
     // public function __construct(Google_Service_Analytics $service, Repository $cache)
     public function __construct(Analytics $analytics)
@@ -37,13 +38,22 @@ class AnalyticsClient
         return $this;
     }
 
-    public function getAccounts()
+    public function getAccounts($refresh = false)
     {
+        if ($refresh)
+            Cache::forget('ga_analytics_accounts_' . $this->user->id);
+
         try {
-            $accounts = $this->service
-                ->management_accounts
-                ->listManagementAccounts()
-                ->getItems();
+            $accounts = Cache::remember(
+                'ga_analytics_accounts_' . $this->user->id,
+                $this->cacheLifeTimeInMinutes,
+                function () {
+                    return $this->service
+                        ->management_accounts
+                        ->listManagementAccounts()
+                        ->getItems();
+                }
+            );
         } catch (\Google_Service_Exception $e) {
             return null;
         }
@@ -60,12 +70,25 @@ class AnalyticsClient
         return $collection;
     }
 
-    public function getProperties($accountId)
+    public function getProperties($accountId, $refresh = false)
     {
-        $properties = $this->service
-            ->management_webproperties
-            ->listManagementWebproperties($accountId)
-            ->getItems();
+        if ($refresh)
+            Cache::forget('ga_analytics_properties_' . $accountId);
+
+        try {
+            $properties = Cache::remember(
+                'ga_analytics_properties_' . $accountId,
+                $this->cacheLifeTimeInMinutes,
+                function () use ($accountId) {
+                    return $this->service
+                        ->management_webproperties
+                        ->listManagementWebproperties($accountId)
+                        ->getItems();
+                }
+            );
+        } catch (\Google_Service_Exception $e) {
+            return null;
+        }
 
         if ($properties == null)
             return null;
@@ -80,12 +103,25 @@ class AnalyticsClient
         return $collection;
     }
 
-    public function getManagementProfiles($accountId, $propertyId)
+    public function getManagementProfiles($accountId, $propertyId, $refresh = false)
     {
-        $profiles = $this->service
-            ->management_profiles
-            ->listManagementProfiles($accountId, $propertyId)
-            ->getItems();
+        if ($refresh)
+            Cache::forget('ga_analytics_views_' . $accountId . '_' . $propertyId);
+
+        try {
+            $profiles = Cache::remember(
+                'ga_analytics_views_' . $accountId . '_' . $propertyId,
+                $this->cacheLifeTimeInMinutes,
+                function () use ($accountId, $propertyId){
+                    return $this->service
+                        ->management_profiles
+                        ->listManagementProfiles($accountId, $propertyId)
+                        ->getItems();
+                }
+            );
+        } catch (\Google_Service_Exception $e) {
+            return null;
+        }
 
         if ($profiles == null)
             return null;
@@ -105,10 +141,10 @@ class AnalyticsClient
     public function performQuery(string $viewId, DateTime $startDate, DateTime $endDate, string $metrics, array $others = [])
     {
         // $cacheName = $this->determineCacheName(func_get_args());
-
+        //
         // if ($this->cacheLifeTimeInMinutes == 0)
         //     $this->cache->forget($cacheName);
-
+        //
         // return $this->cache->remember($cacheName, $this->cacheLifeTimeInMinutes, function () use ($viewId, $startDate, $endDate, $metrics, $others) {
 
             $result = $this->service->data_ga->get(
@@ -141,8 +177,8 @@ class AnalyticsClient
         return $this->service;
     }
 
-    // protected function determineCacheName(array $properties): string
-    // {
-    //     return 'spatie.laravel-analytics.'.md5(serialize($properties));
-    // }
+    protected function determineCacheName(array $properties): string
+    {
+        return 'leanmachine.laravel-analytics.'.md5(serialize($properties));
+    }
 }

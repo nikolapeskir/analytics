@@ -3,25 +3,14 @@
 namespace Leanmachine\Analytics\Http\Controllers;
 
 use Illuminate\Routing\Controller;
-use Illuminate\Http\Request;
-use Auth;
+use Closure;
 use App\User;
-use Carbon\Carbon;
 use Leanmachine\Analytics\Http\Analytic;
 use Illuminate\Contracts\Cache\Repository;
 use Google_Client;
-use Google_Service_Analytics;
-use Google_Service_AnalyticsReporting;
-use Google_Service_AnalyticsReporting_DateRange;
-use Google_Service_AnalyticsReporting_Metric;
-use Google_Service_AnalyticsReporting_ReportRequest;
-use Google_Service_AnalyticsReporting_GetReportsRequest;
 use Leanmachine\Analytics\Http\Analytics;
 use Leanmachine\Analytics\Http\AnalyticsViews;
 use Leanmachine\Analytics\Http\Requests\AnalyticsViewPost;
-use Leanmachine\Analytics\Http\AnalyticsClient;
-use Leanmachine\Analytics\Http\Period;
-use Closure;
 
 class AnalyticsController extends Controller
 {
@@ -61,22 +50,26 @@ class AnalyticsController extends Controller
             : 'No Accounts';
     }
 
-    public function getAccounts()
+    public function getAccounts($refresh = false)
     {
-        return $this->analytics->service->getAccounts();
+        $refresh = ($refresh != '') ? $refresh : request()->refresh;
+
+        return $this->analytics->service->getAccounts($refresh);
     }
 
-    public function getProperties($accountId = '')
+    public function getProperties($accountId = '', $refresh = '')
     {
         $accountId = ($accountId != '') ? $accountId : request()->accountId;
+        $refresh = ($refresh != '') ? $refresh : request()->refresh;
 
-        return $this->analytics->service->getProperties($accountId);
+        return $this->analytics->service->getProperties($accountId, $refresh);
     }
 
-    public function getViews($accountId = '', $propertyId = '')
+    public function getViews($accountId = '', $propertyId = '', $refresh = false)
     {
         $accountId = ($accountId != '') ? $accountId : request()->accountId;
         $propertyId = ($propertyId != '') ? $propertyId : request()->propertyId;
+        $refresh = ($refresh != '') ? $refresh : request()->refresh;
 
         return $this->analytics->service->getManagementProfiles($accountId, $propertyId);
     }
@@ -105,6 +98,21 @@ class AnalyticsController extends Controller
         return $view;
     }
 
+    public function deleteView($id)
+    {
+        $view = AnalyticsViews::where('foreign_id', $id)
+            ->where('user_id', $this->analytics->user->id);
+
+        return ($view != null)
+            ? $view->delete()
+            : null;
+    }
+
+    public function getViewById(Request $request)
+    {
+        return $this->analytics->getViewById($request->foreignId);
+    }
+
     public function redirectToProvider()
     {
         return redirect($this->analytics->getAuthUrl());
@@ -120,7 +128,8 @@ class AnalyticsController extends Controller
     public function handleProviderCallback()
     {
         if ($this->analytics->storeToken())
-            return redirect(config('analytics.authenticate'));
+            return redirect(config('analytics.authenticate'))
+                ->with(['success' => 'You connected your Google Analytics account successfully.']);
     }
     private function checkConnection()
     {
@@ -131,7 +140,8 @@ class AnalyticsController extends Controller
     {
         $this->analytics->disconnect();
 
-        return redirect(config('analytics.authenticate'));
+        return redirect(config('analytics.authenticate'))
+            ->with(['success' => 'You disconnected your Google Analytics account successfully']);;
     }
     
     private function getFirstProfileId()
