@@ -6,14 +6,11 @@ use Carbon\Carbon;
 use Google_Client;
 use Google_Service_Analytics;
 use Illuminate\Support\Collection;
-// use Illuminate\Support\Traits\Macroable;
 use Leanmachine\Analytics\Http\Analytic;
 use Leanmachine\Analytics\Http\AnalyticViews;
 
 class Analytics
 {
-    // use Macroable;
-
     public $client;
 
     public $service;
