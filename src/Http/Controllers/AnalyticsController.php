@@ -5,18 +5,9 @@ namespace Leanmachine\Analytics\Http\Controllers;
 use Illuminate\Routing\Controller;
 use Closure;
 use Google_Client;
-use Google_Service_Analytics;
-use Google_Service_AnalyticsReporting;
-use Google_Service_AnalyticsReporting_DateRange;
-use Google_Service_AnalyticsReporting_Metric;
-use Google_Service_AnalyticsReporting_ReportRequest;
-use Google_Service_AnalyticsReporting_GetReportsRequest;
 use Leanmachine\Analytics\Http\Analytics;
 use Leanmachine\Analytics\Http\AnalyticsViews;
 use Leanmachine\Analytics\Http\Requests\AnalyticsViewPost;
-use Leanmachine\Analytics\Http\AnalyticsClient;
-use Leanmachine\Analytics\Http\Period;
-use Closure;
 
 class AnalyticsController extends Controller
 {
