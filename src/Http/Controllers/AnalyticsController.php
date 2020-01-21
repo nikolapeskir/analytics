@@ -3,12 +3,7 @@
 namespace Leanmachine\Analytics\Http\Controllers;
 
 use Illuminate\Routing\Controller;
-use Illuminate\Http\Request;
-use Auth;
-use App\User;
-use Carbon\Carbon;
-use Leanmachine\Analytics\Http\Analytic;
-use Illuminate\Contracts\Cache\Repository;
+use Closure;
 use Google_Client;
 use Google_Service_Analytics;
 use Google_Service_AnalyticsReporting;
