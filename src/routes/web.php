@@ -5,10 +5,11 @@ Route::group(['middleware' => ['web', 'auth']], function () {
             Route::get('/', 'AnalyticsController@index')->name('ga.index');
             Route::get('authenticate', 'AnalyticsController@authenticate')->name('ga.authenticate');
 
-            Route::get('accounts', 'AnalyticsController@getAccounts')->name('ga.accounts');
+            Route::post('accounts', 'AnalyticsController@getAccounts')->name('ga.accounts');
             Route::post('properties', 'AnalyticsController@getProperties')->name('ga.properties');
             Route::post('views', 'AnalyticsController@getViews')->name('ga.views');
-            Route::post('save', 'AnalyticsController@storeView');
+            Route::post('save', 'AnalyticsController@storeView')->name('ga.save');
+            Route::post('delete/{delete}', 'AnalyticsController@deleteView')->name('ga.delete');
 
             Route::get('connect', 'AnalyticsController@redirectToProvider')->name('ga.connect');
             Route::get('callback', 'AnalyticsController@handleProviderCallback')->name('ga.callback');

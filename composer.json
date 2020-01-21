@@ -6,7 +6,7 @@
         "php": "^7.2",
         "google/apiclient": "2.2",
         "laravel/framework": "^5.7",
-        "nesbot/carbon": "^2.0",
+        "nesbot/carbon": "^1.39.1",
         "symfony/cache": "^4.3|^5.0"
     },
     "require-dev": {

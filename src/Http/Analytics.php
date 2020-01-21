@@ -33,7 +33,7 @@ class Analytics
 
     public function authenticateClient()
     {
-        if (!$analytics = Analytic::where('user_id', $this->user->id)->first())
+        if (!$analytics = $this->getUserToken())
             return null;
 
         $analyticsArray = $analytics->attributesToArray();
@@ -77,9 +77,9 @@ class Analytics
 
         $token['user_id'] = $this->user->id;
 
-        $userToken = Analytic::where('user_id', $this->user->id)->first();
+        $userToken = $this->getUserToken();
 
-        if ($userToken != null) {
+        if ($userToken) {
             foreach ($token as $key => $val)
                 $userToken->{$key} = $token[$key];
 
@@ -94,6 +94,15 @@ class Analytics
     public function checkConnection()
     {
         return ($this->service !== null) ? true : false;
+    }
+
+    public function getUserToken()
+    {
+        $userToken = Analytic::where('user_id', $this->user->id)->first();
+
+        return ( $userToken != null)
+            ? $userToken
+            : false;
     }
 
     public function disconnect()
@@ -112,6 +121,17 @@ class Analytics
         $this->viewId = $viewId;
 
         return $this;
+    }
+
+    public function getViewById(string $foreignId)
+    {
+        if (!$view = AnalyticsViews::where('foreign_id', $foreignId)
+            ->where('user_id', $this->user->id)
+            ->first()
+        )
+            return null;
+
+        return $view;
     }
 
     public function fetchVisitorsAndPageViews(Period $period): Collection
