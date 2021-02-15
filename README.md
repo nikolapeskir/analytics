@@ -1,1 +1,1 @@
-Leanmachine Analytics v1.1.2
+Leanmachine Analytics v2.0.0
