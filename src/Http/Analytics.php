@@ -24,6 +24,8 @@ class Analytics
 
     public function __construct(Google_Client $client)
     {
+        $this->name = session('account_name');
+
         $this->user = auth()->user();
 
         $this->client = $client;
@@ -96,9 +98,22 @@ class Analytics
         return ($this->service !== null) ? true : false;
     }
 
+    public function getAnalyticsAccounts()
+    {
+        return Analytic::select('id', 'name')
+            ->where('user_id', auth()->id())
+            ->get();
+    }
+
     public function getUserToken()
     {
-        $userToken = Analytic::where('user_id', $this->user->id)->first();
+        $userToken = Analytic::when(! request()->filled('analyticId'), function ($query) {
+            $query->where('user_id', auth()->id());
+        })
+            ->when(request()->filled('analyticId'), function ($query) {
+                $query->where('id', request('analyticId'));
+            })
+            ->first();
 
         return ( $userToken != null)
             ? $userToken
