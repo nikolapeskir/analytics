@@ -2,11 +2,13 @@
 
 namespace Leanmachine\Analytics\Http\Controllers;
 
-use Illuminate\Routing\Controller;
 use Closure;
 use Google_Client;
+use Illuminate\Routing\Controller;
 use Leanmachine\Analytics\Http\Analytics;
 use Leanmachine\Analytics\Http\AnalyticsViews;
+use Leanmachine\Analytics\Http\Rules\UniqueAnalytics;
+
 use Leanmachine\Analytics\Http\Requests\AnalyticsViewPost;
 
 class AnalyticsController extends Controller
@@ -20,10 +22,11 @@ class AnalyticsController extends Controller
         $this->middleware(function ($request, Closure $next) {
 
             $this->setAnalytics();
-            $courentRoute = '/' . \Route::current()->uri;
+            $currentRoute = '/' . \Route::current()->uri;
 
-            if ($courentRoute == '/analytics/connect'
-            || $courentRoute == config('analytics.authenticate'))
+            if ($currentRoute == '/analytics/connect'
+                || $currentRoute == config('analytics.authenticate')
+                || $currentRoute == '/analytics/store-temporary')
                 return $next($request);
 
             if (!$this->checkConnection())
@@ -42,8 +45,12 @@ class AnalyticsController extends Controller
     {
         $accounts = $this->getAccounts();
 
+        $gaAnalytics = ($this->checkConnection())
+            ? $this->analytics
+            : [];
+
         return ($accounts != null)
-            ? view('analytics::analytics.index', compact('accounts'))
+            ? view('analytics::analytics.index', compact('gaAnalytics', 'accounts'))
             : 'No Accounts';
     }
 
@@ -67,17 +74,42 @@ class AnalyticsController extends Controller
         return $this->analytics->service->getManagementProfiles($accountId, $propertyId);
     }
 
+    public function storeTemporaryNewAccount()
+    {
+        request()->validate([
+            'account_name' => ['required', 'max:255', new UniqueAnalytics]
+        ]);
+
+        session([
+            'account_name'=> request('account_name')
+        ]);
+
+        return response()->json([
+            'success' => true
+        ]);
+    }
+
+    public function removeTemporaryNewAccount()
+    {
+        if (!empty(session('account_name'))) {
+            session()->forget('account_name');
+        }
+    }
+
     public function storeView(AnalyticsViewPost $request)
     {
         $data = [
             'user_id' => $this->analytics->user->id,
+            'analytics_id' => $request->analyticId,
             'account_id' => $request->accountId,
             'property_id' => $request->propertyId,
             'view_id' => $request->viewId,
             'foreign_id' => $request->foreignId,
         ];
 
-        $view = AnalyticsViews::where('foreign_id', $request->foreignId)->first();
+        $view = AnalyticsViews::where('user_id', $this->analytics->user->id)
+            ->where('foreign_id', $request->foreignId)
+            ->first();
 
         if ($view != null) {
             foreach ($data as $key => $val)
@@ -89,6 +121,13 @@ class AnalyticsController extends Controller
         }
 
         return $view;
+    }
+
+    public function deleteView($foreignId)
+    {
+        return AnalyticsViews::where('user_id', $this->analytics->user->id)
+            ->where('foreign_id', $foreignId)
+            ->delete();
     }
 
     public function redirectToProvider()
@@ -105,9 +144,18 @@ class AnalyticsController extends Controller
 
     public function handleProviderCallback()
     {
-        if ($this->analytics->storeToken())
+        try {
+            $this->analytics->storeToken();
+
             return redirect(config('analytics.authenticate'));
+        } catch (\Exception $e) {
+            return redirect(config('analytics.authenticate'))->with([
+                'code' => $e->getCode(),
+                'message' => $e->getMessage()
+            ]);
+        }
     }
+
     private function checkConnection()
     {
         return $this->analytics->checkConnection();
@@ -117,9 +165,18 @@ class AnalyticsController extends Controller
     {
         $this->analytics->disconnect();
 
-        return redirect(config('analytics.authenticate'));
+        return redirect(config('analytics.authenticate'))
+            ->with(['success' => 'You disconnected your Google Analytics account successfully']);
     }
-    
+
+    public function success()
+    {
+        $connected = $this->checkConnection();
+        $this->removeTemporaryNewAccount();
+
+        return view('analytics::analytics.success', compact('connected'));
+    }
+
     private function getFirstProfileId()
     {
         $accounts = $this->getAccounts();
@@ -142,6 +199,11 @@ class AnalyticsController extends Controller
         } else {
             throw new Exception('No accounts found for this user.');
         }
+    }
+
+    public function getAnalyticsAccounts(Analytics $analytics)
+    {
+        return $analytics->getAnalyticsAccounts();
     }
 
 }
