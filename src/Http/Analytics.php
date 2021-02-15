@@ -2,6 +2,7 @@
 
 namespace Leanmachine\Analytics\Http;
 
+use Exception;
 use Carbon\Carbon;
 use Google_Client;
 use Google_Service_Analytics;
@@ -18,6 +19,8 @@ class Analytics
     protected $viewId;
 
     public $user;
+
+    public $name;
 
     public function __construct(Google_Client $client)
     {
@@ -44,7 +47,7 @@ class Analytics
         if ($this->client->isAccessTokenExpired()) {
             $this->client->fetchAccessTokenWithRefreshToken($analyticsArray['refresh_token']);
             $token = $this->client->getAccessToken();
-            
+
             foreach ($token as $key => $val)
                 $analytics->{$key} = $token[$key];
 
@@ -73,20 +76,17 @@ class Analytics
         $this->client->authenticate(request()->code);
 
         if (!$token = $this->client->getAccessToken())
-            return false;
+            throw new Exception("Unable to connect to your account. Please try again.", 400);
+
+        $accounts = $this->service->getAccounts();
+
+        if (! is_array($accounts))
+            throw new Exception("Your Google account is not connected to Google Analytics.", 400);
 
         $token['user_id'] = $this->user->id;
+        $token['name'] = $this->name;
 
-        $userToken = $this->getUserToken();
-
-        if ($userToken) {
-            foreach ($token as $key => $val)
-                $userToken->{$key} = $token[$key];
-
-            $userToken->save();
-        } else {
-            $userToken = Analytic::create($token);
-        }
+        Analytic::create($token);
 
         return true;
     }
